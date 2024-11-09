@@ -6,7 +6,7 @@ document.getElementById('prediction-form').addEventListener('submit', async func
     const depth = parseFloat(document.getElementById('depth-input').value);
 
     try {
-        const response = await fetch('http://127.0.0.1:5000/predict', {
+        const response = await fetch('http://139.84.175.31/predict', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
