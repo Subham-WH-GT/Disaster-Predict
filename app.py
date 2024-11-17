@@ -1,33 +1,26 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, LabelEncoder, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import train_test_split
 import joblib
-import numpy as np
-from flask_cors import CORS
 
-app = Flask(__name__,template_folder='templates')
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-CORS(app)
+# Initialize Flask app
+app = Flask(__name__)
 
+# Load pre-trained models and scalers
 earthquake_clf = joblib.load('random_forest_classifier.pkl')
 earthquake_reg = joblib.load('random_forest_regressor.pkl')
-
 earthquake_scaler = joblib.load('scaler.pkl')
-
 earthquake_le = joblib.load('label_encoder.pkl')
 
-
-# Load flood model and scaler
 flood_clf = joblib.load('flood_classifier.pkl')
 flood_scaler = joblib.load('flood_scaler.pkl')
 
-#Load heatwave model and scaler
-heatwave_model=joblib.load('heatwave_prediction_model.pkl')
-heatwave_scaler=joblib.load('heatwave_scaler.pkl')
+heatwave_model = joblib.load('heatwave_model.pkl')
+heatwave_scaler = joblib.load('heatwave_scaler.pkl')
 
-# Prediction API Routes
+# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -36,64 +29,80 @@ def index():
 @app.route('/predict', methods=['POST', 'GET'])
 def predict_earthquake():
     if request.method == 'POST':
-        data = request.json
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        depth = float(data['depth'])
-        input_data = pd.DataFrame({'Lat': [latitude], 'Long': [longitude], 'Depth': [depth], 'Origin Time': [0]})
-        input_data[['Lat', 'Long', 'Depth', 'Origin Time']] = earthquake_scaler.transform(input_data[['Lat', 'Long', 'Depth', 'Origin Time']])
+        try:
+            # Get JSON data
+            data = request.json
+            required_fields = ['latitude', 'longitude', 'depth']
+            if not all(field in data for field in required_fields):
+                return jsonify({'error': 'Missing required fields'}), 400
 
-        predicted_category_encoded = earthquake_clf.predict(input_data)
-        predicted_category = earthquake_le.inverse_transform(predicted_category_encoded)
-        predicted_magnitude = earthquake_reg.predict(input_data)
+            # Parse input values
+            latitude = float(data['latitude'])
+            longitude = float(data['longitude'])
+            depth = float(data['depth'])
 
-        return jsonify({
-            'predicted_category': predicted_category[0],
-            'predicted_magnitude': round(predicted_magnitude[0], 2)
-        })
+            # Prepare input data
+            input_data = pd.DataFrame({'Lat': [latitude], 'Long': [longitude], 'Depth': [depth], 'Origin Time': [0]})
+            input_data[['Lat', 'Long', 'Depth', 'Origin Time']] = earthquake_scaler.transform(
+                input_data[['Lat', 'Long', 'Depth', 'Origin Time']]
+            )
+
+            # Predict category and magnitude
+            predicted_category_encoded = earthquake_clf.predict(input_data)
+            predicted_category = earthquake_le.inverse_transform(predicted_category_encoded)
+            predicted_magnitude = earthquake_reg.predict(input_data)
+
+            return jsonify({
+                'predicted_category': predicted_category[0],
+                'predicted_magnitude': round(predicted_magnitude[0], 2)
+            })
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return render_template('earthquake_index.html')
 
 # Flood Prediction Route
 @app.route('/predict_flood', methods=['POST', 'GET'])
 def predict_flood():
     if request.method == 'POST':
-        data = request.json
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        rainfall = float(data['rainfall'])
-        temperature = float(data['temperature'])
-        humidity = float(data['humidity'])
-        river_discharge = float(data['river_discharge'])
-        water_level = float(data['water_level'])
-        elevation = float(data['elevation'])
+        try:
+            # Get JSON data
+            data = request.json
+            required_fields = [
+                'latitude', 'longitude', 'rainfall', 'temperature',
+                'humidity', 'river_discharge', 'water_level', 'elevation'
+            ]
+            if not all(field in data for field in required_fields):
+                return jsonify({'error': 'Missing required fields'}), 400
 
-        # Prepare input data for flood prediction
-        input_data = pd.DataFrame({
-            'Latitude': [latitude],
-            'Longitude': [longitude],
-            'Rainfall': [rainfall],
-            'Temperature': [temperature],
-            'Humidity': [humidity],
-            'River Discharge': [river_discharge],
-            'Water Level': [water_level],
-            'Elevation': [elevation]
-        })
+            # Prepare input features
+            input_data = pd.DataFrame({
+                'Latitude': [float(data['latitude'])],
+                'Longitude': [float(data['longitude'])],
+                'Rainfall': [float(data['rainfall'])],
+                'Temperature': [float(data['temperature'])],
+                'Humidity': [float(data['humidity'])],
+                'River Discharge': [float(data['river_discharge'])],
+                'Water Level': [float(data['water_level'])],
+                'Elevation': [float(data['elevation'])]
+            })
 
-        # Scale input data
-        input_data_scaled = flood_scaler.transform(input_data)
+            # Scale input data
+            input_data_scaled = flood_scaler.transform(input_data)
 
-        # Predict flood risk
-        flood_prediction = flood_clf.predict(input_data_scaled)
-        flood_result = "Flood likely" if flood_prediction[0] == 1 else "Flood unlikely"
+            # Predict flood risk
+            flood_prediction = flood_clf.predict(input_data_scaled)
+            flood_result = "Flood likely" if flood_prediction[0] == 1 else "Flood unlikely"
 
-        return jsonify({'flood_result': flood_result})
+            return jsonify({'flood_result': flood_result})
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     return render_template('flood_index.html')
 
-# Weather Route
-@app.route('/weather', methods=['GET'])
-def weather():
-    return render_template('weather.html')
-
+# Heatwave Prediction Route
 @app.route('/predict_heatwave', methods=['POST', 'GET'])
 def predict_heatwave():
     if request.method == 'POST':
@@ -122,12 +131,13 @@ def predict_heatwave():
 
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-    print("Rendering heatwave_index.html") 
-    return render_template('heatwave_index.html')       
+
+    return render_template('heatwave_index.html')
+
+# Weather Route
+@app.route('/weather', methods=['GET'])
+def weather():
+    return render_template('weather.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
-    
