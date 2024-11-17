@@ -4,6 +4,8 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, classification_report, mean_squared_error
 from sklearn.model_selection import train_test_split
 import joblib
+from sklearn.linear_model import LinearRegression
+from imblearn.over_sampling import RandomOverSampler
 import numpy as np
 
 # Load data
@@ -95,3 +97,90 @@ flood_clf.fit(X_flood_train_scaled, y_flood_train)
 # Save the flood model and scaler
 joblib.dump(flood_clf, 'flood_classifier.pkl')
 joblib.dump(flood_scaler, 'flood_scaler.pkl')
+
+
+
+#heatwave
+
+
+# Load the dataset
+df = pd.read_csv('heat.csv')
+
+# Drop rows with NaN values in important columns
+df = df.dropna(subset=['latitude', 'longitude', 'heatwave'])
+
+# Drop unnecessary columns
+df.drop(['date', 'wind_speed', 'pressure_surface_level', 'visibility', 'snowfall', 
+         'min_temperature', 'min_humidity', 'dew_point', 'latitude', 'longitude'], axis=1, inplace=True)
+
+# Fill NaN values in remaining columns with the mean
+for column in df.columns:
+    mean_val = df[column].mean()
+    df[column].fillna(mean_val, inplace=True)
+
+# Separate features and target variable for regression
+y = df['heatwave']  # Use a continuous variable if available
+X = df.drop('heatwave', axis=1)
+
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Apply Random Oversampling to the training data
+ros = RandomOverSampler(random_state=42)
+X_resampled, y_resampled = ros.fit_resample(X_train, y_train)
+
+# Scale features after oversampling
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_resampled)
+X_test_scaled = scaler.transform(X_test)
+
+# Convert scaled data back to DataFrame for easier interpretation (optional)
+X_train_scaled_df = pd.DataFrame(X_train_scaled, columns=X.columns)
+X_test_scaled_df = pd.DataFrame(X_test_scaled, columns=X.columns)
+
+# Initialize and train a Linear Regression model
+model = LinearRegression()
+model.fit(X_train_scaled, y_resampled)
+
+# Make predictions on the test set
+y_pred = model.predict(X_test_scaled)
+
+joblib.dump(model, 'heatwave_prediction_model.pkl')
+joblib.dump(scaler, 'heatwave_scaler.pkl')
+
+
+# def predict_heatwave(input_features):
+#     """
+#     Takes in input features, scales them, and returns a prediction of the target variable.
+#     :param input_features: Dictionary containing the feature values
+#     :return: Predicted value (continuous output)
+#     """
+#     # Convert input features to a DataFrame
+#     input_df = pd.DataFrame([input_features])
+
+#     # Scale the input data using the same scaler used for training
+#     input_scaled = scaler.transform(input_df)
+
+#     # Make the prediction
+#     prediction = model.predict(input_scaled)
+    
+#     return prediction[0]
+
+# # Example input features
+# input_features = {
+#     'cloud_cover':34.76532,
+#     'precipitation_probability': 5.7643686,
+#     'uv_index': 4.6754,
+#     'rainfall': 1.00302802137343,
+#     'solar_radiation': 700.785654223,
+#     'max_temperature':26.3513479453629,
+#     'max_humidity':60
+# }
+
+# # Predict if heatwave is likely for the given input
+# result = predict_heatwave(input_features)
+# if(result>0.5):
+#     print('Heatwave to occur!')
+# else : 
+#     print("No heatwave likely")   
+

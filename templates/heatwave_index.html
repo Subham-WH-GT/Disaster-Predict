@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatwave Prediction</title>
+    <link rel="stylesheet" href="/static/css/heatwave.css">
+</head>
+<body>
+    <div class="container">
+        <h1>HeatWave Prediction</h1>
+        <form id="heatwave-form">
+            <label for="cloud_cover">Cloud Cover (%):</label>
+            <input type="number" id="cloud_cover" name="cloud_cover" required placeholder="Enter cloud cover">
+
+            <label for="precipitation_probability">Precipitation Probability (%):</label>
+            <input type="number" id="precipitation_probability" name="precipitation_probability" required placeholder="Enter precipitation probability">
+
+            <label for="uv_index">UV Index:</label>
+            <input type="number" id="uv_index" name="uv_index" required placeholder="Enter UV index">
+
+            <label for="rainfall">Rainfall (mm):</label>
+            <input type="number" id="rainfall" name="rainfall" required placeholder="Enter rainfall amount">
+
+            <label for="solar_radiation">Solar Radiation (W/m²):</label>
+            <input type="number" id="solar_radiation" name="solar_radiation" required placeholder="Enter solar radiation">
+
+            <label for="max_temperature">Max Temperature (°C):</label>
+            <input type="number" id="max_temperature" name="max_temperature" required placeholder="Enter max temperature">
+
+            <label for="max_humidity">Max Humidity (%):</label>
+            <input type="number" id="max_humidity" name="max_humidity" required placeholder="Enter max humidity">
+
+            <button type="submit">Predict</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('heatwave-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            // Convert input values to numbers
+            for (let key in data) {
+                data[key] = parseFloat(data[key]);
+            }
+
+            try {
+                const response = await fetch('/predict_heatwave', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                const result = await response.json();
+                document.getElementById('result').textContent = result.heatwave_result || result.error;
+                document.getElementById('result').classList.add(result.heatwave_result === 'Heatwave likely!' ? 'heatwave-yes' : 'heatwave-no');
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: Unable to fetch prediction.';
+                document.getElementById('result').className = 'heatwave-error';
+            }
+        };
+    </script>
+</body>
+</html>

@@ -7,22 +7,25 @@ import joblib
 import numpy as np
 from flask_cors import CORS
 
-app = Flask(__name__)
+app = Flask(__name__,template_folder='templates')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 CORS(app)
 
-# Load models, scaler, and label encoder
-# earthquake_clf = joblib.load('random_forest_classifier.pkl')
 earthquake_clf = joblib.load('random_forest_classifier.pkl')
 earthquake_reg = joblib.load('random_forest_regressor.pkl')
-# earthquake_reg = joblib.load('C:\Users\user\Desktop\AI-DRIVEN-DISASTER-PREDICTION-MODEL\random_forest_regressor.pkl')
+
 earthquake_scaler = joblib.load('scaler.pkl')
-# earthquake_scaler = joblib.load('C:\Users\user\Desktop\AI-DRIVEN-DISASTER-PREDICTION-MODEL\scaler.pkl')
+
 earthquake_le = joblib.load('label_encoder.pkl')
 
 
 # Load flood model and scaler
 flood_clf = joblib.load('flood_classifier.pkl')
 flood_scaler = joblib.load('flood_scaler.pkl')
+
+#Load heatwave model and scaler
+heatwave_model=joblib.load('heatwave_prediction_model.pkl')
+heatwave_scaler=joblib.load('heatwave_scaler.pkl')
 
 # Prediction API Routes
 @app.route('/')
@@ -91,5 +94,40 @@ def predict_flood():
 def weather():
     return render_template('weather.html')
 
+@app.route('/predict_heatwave', methods=['POST', 'GET'])
+def predict_heatwave():
+    if request.method == 'POST':
+        try:
+            # Get JSON data
+            data = request.json
+            required_fields = [
+                'cloud_cover', 'precipitation_probability', 'uv_index',
+                'rainfall', 'solar_radiation', 'max_temperature', 'max_humidity'
+            ]
+            if not all(field in data for field in required_fields):
+                return jsonify({'error': 'Missing required fields'}), 400
+
+            # Prepare input features
+            input_features = {field: float(data[field]) for field in required_fields}
+            input_df = pd.DataFrame([input_features])
+
+            # Scale input data
+            input_scaled = heatwave_scaler.transform(input_df)
+
+            # Predict heatwave likelihood
+            prediction = heatwave_model.predict(input_scaled)[0]
+            result = 'Heatwave likely!' if prediction > 0.5 else 'No heatwave likely.'
+
+            return jsonify({'heatwave_result': result})
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    print("Rendering heatwave_index.html") 
+    return render_template('heatwave_index.html')       
+
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+    
