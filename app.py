@@ -17,7 +17,7 @@ earthquake_le = joblib.load('label_encoder.pkl')
 flood_clf = joblib.load('flood_classifier.pkl')
 flood_scaler = joblib.load('flood_scaler.pkl')
 
-heatwave_model = joblib.load('heatwave_model.pkl')
+heatwave_model = joblib.load('heatwave_prediction_model.pkl')
 heatwave_scaler = joblib.load('heatwave_scaler.pkl')
 
 # Routes
